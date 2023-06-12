@@ -22,16 +22,27 @@ async function run() {
     const categoriesCollection = client
       .db("phone-resale")
       .collection("category");
+    const phonesCollection = client
+      .db("phone-resale")
+      .collection("phones");
 
     app.get("/", (req, res) => {
       res.send("Phone resale server running");
     });
-    
+
 
     app.get("/categories", async (req, res) => {
       const query = {};
       const categories = await categoriesCollection.find(query).toArray();
       res.send(categories);
+    });
+
+    app.get("/category/:name", async (req, res) => {
+        const name = req.params.name;
+        const query = {}
+      const phones = await phonesCollection.find(query).toArray();
+      const categoryItems = phones.filter(p=> p.brand == name)
+      res.send(categoryItems);
     });
   } finally {
   }
