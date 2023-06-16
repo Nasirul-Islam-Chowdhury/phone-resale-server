@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -19,17 +19,14 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
-    const categoriesCollection = client
-      .db("phone-resale")
-      .collection("category");
-    const phonesCollection = client
-      .db("phone-resale")
-      .collection("phones");
+    const categoriesCollection = client.db("phone-resale").collection("category");
+    const phonesCollection = client.db("phone-resale").collection("phones");
+    const usersCollection = client.db("phone-resale").collection("users");
+    const ordersCollection = client.db("phone-resale").collection("orders");
 
     app.get("/", (req, res) => {
       res.send("Phone resale server running");
     });
-
 
     app.get("/categories", async (req, res) => {
       const query = {};
@@ -37,12 +34,50 @@ async function run() {
       res.send(categories);
     });
 
+    app.get("/buyers", async (req, res) => {
+      const query = {role: "Buyer"};
+      const buyers = await usersCollection.find(query).toArray();
+      res.send(buyers);
+    });
+    app.get("/sellers", async (req, res) => {
+      const query = {role: "Seller"};
+      const sellers = await usersCollection.find(query).toArray();
+      res.send(sellers);
+    });
+
     app.get("/category/:name", async (req, res) => {
-        const name = req.params.name;
-        const query = {}
+      const name = req.params.name;
+      const query = {};
       const phones = await phonesCollection.find(query).toArray();
-      const categoryItems = phones.filter(p=> p.brand == name)
+      const categoryItems = phones.filter((p) => p.brand == name);
       res.send(categoryItems);
+    });
+
+    app.get("/phone/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const phone = await phonesCollection.find(query).toArray();
+      res.send(phone);
+    });
+
+    app.get("/orders", async (req, res) => { 
+      const email = req.query.email;
+      const query = { email: email };
+      const orders = await ordersCollection.find(query).toArray();
+      res.send(orders);
+    });
+
+    app.post("/orders", async (req, res) => {
+      const query = req.body;
+      const order = await ordersCollection.insertOne(query);
+      res.send(order);
+    });
+
+    app.post("/users", async (req, res) => {
+      const query = req.body;
+      const result = await usersCollection.insertOne(query);
+      console.log(query, result);
+      res.send(result);
     });
   } finally {
   }
