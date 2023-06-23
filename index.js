@@ -26,6 +26,28 @@ async function run() {
     const ordersCollection = client.db("phone-resale").collection("orders");
     const paymentsColection = client.db("phone-resale").collection("payments");
 
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+
+      if (user?.role !== 'admin') {
+          return res.status(403).send({ message: 'forbidden access' })
+      }
+      next();
+  }
+
+      const verifySeller = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+        console.log(user)
+      if (user?.role !== 'Seller') {
+          return res.status(403).send({ message: 'forbidden access' })
+      }
+      next();
+  }
+
     app.get("/", (req, res) => {
       res.send("Phone resale server running");
     });
@@ -36,13 +58,13 @@ async function run() {
       res.send(categories);
     });
 
-    app.get("/buyers", async (req, res) => {
+    app.get("/buyers", verifyJwt,verifyAdmin, async (req, res) => {
       const query = {role: "Buyer"};
       const buyers = await usersCollection.find(query).toArray();
       res.send(buyers);
     });
 
-    app.get("/sellers", async (req, res) => {
+    app.get("/sellers",verifyJwt, verifyAdmin, async (req, res) => {
       const query = {role: "Seller"};
       const sellers = await usersCollection.find(query).toArray();
       res.send(sellers);
@@ -56,21 +78,21 @@ async function run() {
       res.send(categoryItems);
     });
 
-    app.get("/phone/:id", async (req, res) => {
+    app.get("/phone/:id",verifyJwt, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const phone = await phonesCollection.find(query).toArray();
       res.send(phone);
     });
 
-    app.get("/myProducts", async (req, res) => {
+    app.get("/myProducts",verifyJwt, verifySeller, async (req, res) => {
       const email = req.query.email;
       const query = { sellerEmail : email };
       const phone = await phonesCollection.find(query).toArray();
       res.send(phone);
     });
 
-    app.get("/myBuyers", async (req, res) => {
+    app.get("/myBuyers", verifyJwt,verifySeller, async (req, res) => {
       const email = req.query.email;
       const query = { sellerEmail : email };
       const mybuyers = await ordersCollection.find(query).toArray();
@@ -78,7 +100,7 @@ async function run() {
       res.send(mybuyers);
     });
 
-    app.post("/addProduct", async (req, res) => {
+    app.post("/addProduct", verifyJwt, verifySeller, async (req, res) => {
       const query = req.body;
       const phone = await phonesCollection.insertOne(query);
       res.send(phone);
@@ -91,7 +113,7 @@ async function run() {
       res.send(orders);
     });
 
-    app.get("/order/:id", async (req, res) => { 
+    app.get("/order/:id",verifyJwt, async (req, res) => { 
       const id = req.params.id;
       const query = { _id: new ObjectId(id)};
       const orders = await ordersCollection.find(query).toArray();
@@ -104,7 +126,7 @@ async function run() {
       res.send(order);
     });
 
-    app.delete('/order/:id', async(req, res)=>{
+    app.delete('/order/:id', verifyJwt, async(req, res)=>{
       const id = req.params.id;
       const query = {_id: new ObjectId(id)}
       const result = await ordersCollection.deleteOne(query)
@@ -134,7 +156,7 @@ async function run() {
       res.send(result)
     })
 
-    app.delete('/seller/:id', async(req, res)=>{
+    app.delete('/seller/:id', verifyJwt, async(req, res)=>{
       const id = req.params.id;
       const query = {_id : new ObjectId(id)}
       const result = await ordersCollection.deleteOne(query)
@@ -149,14 +171,14 @@ async function run() {
       const result = await usersCollection.deleteOne(query)
       res.send(result)
     })
-    app.post("/users", async (req, res) => {
+    app.post("/users",  async (req, res) => {
       const query = req.body;
       const result = await usersCollection.insertOne(query);
       res.send(result);
 
     });
 
-    app.put("/advertise/:id", async (req, res) => {
+    app.put("/advertise/:id", verifyJwt, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const options = { upsert: true };
@@ -181,14 +203,14 @@ async function run() {
     });
 
 
-    app.get("/admin/:email", async(req, res)=>{
+    app.get("/admin/:email",verifyJwt, async(req, res)=>{
       const email = req.params.email;
       const query = { email };
       const user = await usersCollection.findOne(query);
       res.send({ isAdmin: user?.role == "admin" });
     })
 
-    app.get("/seller/:email", async(req, res)=>{
+    app.get("/seller/:email", verifyJwt, async(req, res)=>{
       const email = req.params.email;
       const query = { email };
       const user = await usersCollection.findOne(query);
@@ -255,7 +277,7 @@ async function run() {
       res.send(result);
   })
 
-    app.post("/create-payment-intent", async (req, res) => {
+    app.post("/create-payment-intent", verifyJwt, async (req, res) => {
       const  {order}  = req.body;
       const  price  = parseInt(order.itemPrice);
       const amount = price * 100;
@@ -269,6 +291,8 @@ async function run() {
         clientSecret: paymentIntent.client_secret,
       });
     });
+
+  
 
   } finally {
   }
