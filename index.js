@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId, CommandStartedEvent } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -41,7 +41,6 @@ async function run() {
       const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
       const user = await usersCollection.findOne(query);
-        console.log(user)
       if (user?.role !== 'Seller') {
           return res.status(403).send({ message: 'forbidden access' })
       }
@@ -81,8 +80,11 @@ async function run() {
     app.get("/phone/:id",verifyJwt, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const phone = await phonesCollection.find(query).toArray();
-      res.send(phone);
+      const phone = await phonesCollection.findOne(query);
+      const email = phone.sellerEmail
+      const sellerEmailQuery = {email};
+      const userDetail = await usersCollection.findOne(sellerEmailQuery);
+      res.send({phone, userDetail});
     });
 
     app.get("/myProducts",verifyJwt, verifySeller, async (req, res) => {
@@ -96,7 +98,6 @@ async function run() {
       const email = req.query.email;
       const query = { sellerEmail : email };
       const mybuyers = await ordersCollection.find(query).toArray();
-      console.log(mybuyers)
       res.send(mybuyers);
     });
 
@@ -154,6 +155,30 @@ async function run() {
       }
       const result = await usersCollection.deleteOne(query)
       res.send(result)
+    })
+
+    app.put('/seller/:email',verifyJwt, async(req, res)=>{
+      const email = req.params.email;
+      const query = {
+        email: email,
+        role : "Seller"  
+      }
+      const options = {upsert:true}
+       const updateDoc = {
+        $set:{
+          verified: true
+        }
+       }
+      const result = await usersCollection.updateOne(query, updateDoc, options)
+      res.send(result)
+    })
+
+
+    app.get('/users/:email', async(req, res)=>{
+      const email = req.params.email;
+      const query = {email};
+      const user = await usersCollection.findOne(query);
+      res.send(user)
     })
 
     app.delete('/seller/:id', verifyJwt, async(req, res)=>{
@@ -273,7 +298,6 @@ async function run() {
 
       const updatedResult = await ordersCollection.updateOne(filter, updatedDoc)
       const updatedResult2 = await phonesCollection.updateOne(filterinfo, updateInfo)
-      console.log(updatedResult2)
       res.send(result);
   })
 
