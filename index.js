@@ -249,7 +249,7 @@ async function run() {
       const user = await usersCollection.findOne(query);
       if (user) {
         var token = jwt.sign({ email }, process.env.jwt_token, {
-          expiresIn: "2h",
+          expiresIn: "100d",
         });
         return res.send({ accessToken: token });
       }
@@ -316,7 +316,7 @@ async function run() {
       });
     });
 
-  
+  return run;
 
   } finally {
   }
@@ -327,3 +327,5 @@ run().catch(console.dir);
 app.listen(port, () => {
   console.log(`Phone resale server running on port ${port}`);
 });
+
+module.exports = run
